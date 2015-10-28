@@ -28,6 +28,9 @@ def print_map():
     map_name = EVENT_LIST[event][3] + "_map"
     for k,v in b[map_name].items():
         print ("total count : %u" % (v.count))
+        print ("instantaneous speed : %lf" % (v.inst_speed))
+        print ("first time : %u" % (v.first_time))
+        print ("last time : %u" % (v.last_time))
         try:
             print ("total size : %u" % (v.size))
         except:
@@ -74,14 +77,13 @@ with open(EVENT_LIST[event][0], 'r') as f:
 rep = "EXPRESSION"
 bpf_code = cfile.replace(rep, expr)
 
-b = BPF(text = bpf_code, cb = call_back, debug=0)
+b = BPF(text = bpf_code, cb = call_back, debug=6)
 for i in range(0, 10):
     b.attach_kprobe(event = EVENT_LIST[event][1], fn_name = EVENT_LIST[event][2], cpu=i)
     if event == "memory.free_page":
         b.attach_kprobe(event = EVENT_LIST[event][4], fn_name = EVENT_LIST[event][5], cpu=i)
 
 interval = interval * 1000
-#for idx in range(0,10):
 b.kprobe_poll(timeout = interval)
 
 print_map()
