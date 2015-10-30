@@ -28,7 +28,7 @@ def print_map():
     map_name = EVENT_LIST[event][3] + "_map"
     for k,v in b[map_name].items():
         print ("total count : %u" % (v.count))
-        print ("instantaneous speed : %lf" % (v.inst_speed))
+        print ("instantaneous speed : %u" % (v.inst_speed))
         print ("first time : %u" % (v.first_time))
         print ("last time : %u" % (v.last_time))
         try:

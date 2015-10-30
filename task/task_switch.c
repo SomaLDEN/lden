@@ -10,7 +10,7 @@
 #define NUM_MAP_INDEX 0
 #define NUM_DELTA 10
 
-
+/*
 struct circular_queue
 {
     //struct circular_queue_ops *ops;
@@ -19,7 +19,6 @@ struct circular_queue
     //u64 element[NUM_DELTA + 1];
 };
 
-/*
 struct circular_queue_ops
 {
     //void (*push)(struct circular_queue *, u64);
@@ -56,8 +55,10 @@ struct task_switch_value
     u64 count;
     u64 first_time;
     u64 last_time;
-    double inst_speed;
-    struct circular_queue queue_info;
+    u64 inst_speed;
+    //struct circular_queue queue_info_
+    u64 queue_info_front;
+    u64 queue_info_back;
 };
 
     // map where we save total count
@@ -72,29 +73,36 @@ int task_switch_begin(struct pt_regs *ctx)
     u64 cnt, tim = bpf_ktime_get_ns(), *queue, queue_temp;
     val_temp.count = 0;
     val_temp.inst_speed = 0;
-    val_temp.first_time = tim;
-    val_temp.queue_info.front = 0;
-    val_temp.queue_info.back = 1;
-
+    val_temp.first_time = 0;
+    val_temp.last_time = tim;
+    val_temp.queue_info_front = 0;
+    val_temp.queue_info_back = 0;
     val = task_switch_map.lookup_or_init(&map_index, &val_temp);
     
     ++(val->count);
+    if (val->first_time == 0)
+        val->first_time = tim;
     val->last_time = tim;
     
-    if (val->queue_info.front == val->queue_info.back + 1 || (val->queue_info.front == 0 && val->queue_info.back == NUM_DELTA)) // when queue is full
-        val->queue_info.front = (val->queue_info.front + 1) % (NUM_DELTA + 1); // pop
+    if (val->queue_info_front == val->queue_info_back + 1 || (val->queue_info_front == 0 && val->queue_info_back == NUM_DELTA)) // when queue is full
+    { //pop
+        if (++(val->queue_info_front) == NUM_DELTA + 1)
+            val->queue_info_front = 0;
+    }
     
         // push
-    queue_index = val->queue_info.back;
+    queue_index = val->queue_info_back;
+    queue_temp = val->last_time;
     queue = queue_map.lookup_or_init(&queue_index, &queue_temp);
-    *queue = tim - val->first_time;
-    val->queue_info.back = (val->queue_info.back + 1) % (NUM_DELTA + 1);
+    *queue = val->last_time;
+    if (++(val->queue_info_back) == NUM_DELTA + 1)
+        val->queue_info_back = 0;
 
-    if (val->queue_info.front == val->queue_info.back + 1 || (val->queue_info.front == 0 && val->queue_info.back == NUM_DELTA)) // when queue is full
+    if (val->queue_info_front == val->queue_info_back + 1 || (val->queue_info_front == 0 && val->queue_info_back == NUM_DELTA)) // when queue is full
     {
-        queue_index = val->queue_info.front;
-        queue = queue_map.lookup(&queue_index);
-        //val->inst_speed = NUM_DELTA / (double)(tim - *queue);
+        queue_index = val->queue_info_front;
+        queue = queue_map.lookup_or_init(&queue_index, &queue_temp);
+        val->inst_speed = tim - *queue;
     }
 
     cnt = val->count;
