@@ -8,7 +8,7 @@
 
 #define NUM_ARRAY_MAP_SIZE 1
 #define NUM_MAP_INDEX 0
-#define NUM_DELTA 10
+#define NUM_DELTA 50
 
 /*
 struct circular_queue
@@ -70,7 +70,7 @@ int task_switch_begin(struct pt_regs *ctx)
 {
     struct task_switch_value *val, val_temp;
     int queue_index, map_index = NUM_MAP_INDEX;
-    u64 cnt, tim = bpf_ktime_get_ns(), *queue, queue_temp;
+    u64 cnt, spd = 0, tim = bpf_ktime_get_ns(), *queue, queue_temp;
     val_temp.count = 0;
     val_temp.inst_speed = 0;
     val_temp.first_time = 0;
@@ -102,11 +102,11 @@ int task_switch_begin(struct pt_regs *ctx)
     {
         queue_index = val->queue_info_front;
         queue = queue_map.lookup_or_init(&queue_index, &queue_temp);
-        val->inst_speed = tim - *queue;
+        spd = val->inst_speed = tim - *queue;
     }
 
     cnt = val->count;
-    if (EXPRESSION)
+    if (EXPRESSION && spd != 0)
         return 1;
 
     return 0;
